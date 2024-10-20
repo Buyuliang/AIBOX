@@ -14,6 +14,23 @@ struct PerDetection {
 // 人物检测结果结构体
 struct PerDetResult {
     std::vector<PerDetection> detections; // 存储多个检测结果，每个结果包含 id 和 box
+    bool ready_; // 标志检测结果是否准备好
+
+    // 默认构造函数
+    PerDetResult() : ready_(false) {} // 初始化 ready 为 false
+
+    // 复制构造函数
+    PerDetResult(const PerDetResult& other) 
+        : detections(other.detections), ready_(other.ready_) {}
+
+    // 赋值操作符
+    PerDetResult& operator=(const PerDetResult& other) {
+        if (this != &other) { // 防止自我赋值
+            detections = other.detections; // 深拷贝 detections
+            ready_ = other.ready_; // 复制 ready
+        }
+        return *this;
+    }
 };
 
 // 人物检测类，继承自 BaseModel

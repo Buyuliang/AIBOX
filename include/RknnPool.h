@@ -5,7 +5,7 @@
 #include <queue>
 #include <memory>
 #include <future>
-#include "DetectionModels.h"
+#include "MutexQueue.h"
 
 // using DetectionResult = std::variant<PerDetResult, PerAttrResult, FallDetResult, FireSmokeDetResult>;
 
@@ -20,7 +20,7 @@ private:
     std::unique_ptr<dpool::ThreadPool> pool_;            // 线程池实例
     std::queue<std::future<void>> futs_;                 // 存储推理结果的future队列
     std::vector<std::shared_ptr<rknnModel>> models_;     // 模型实例集合
-    ResultQueue<resultType>& resultQueue_;          // 结果队列引用
+    MutexQueue& resultQueue_;          // 结果队列引用
 
 protected:
     // 获取模型ID，用于调度模型
@@ -28,7 +28,7 @@ protected:
 
 public:
     // 构造函数：初始化模型路径和线程数
-    rknnPool(const std::string& modelPath, int threadNum, ResultQueue<resultType>& resultQueue);
+    rknnPool(const std::string& modelPath, int threadNum, MutexQueue& resultQueue);
     // rknnPool(const std::string& modelPath, int threadNum, ResultQueue<DetectionResult>& resultQueue);
 
     // 初始化每个模型实例

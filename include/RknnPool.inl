@@ -1,5 +1,5 @@
 template <typename rknnModel, typename inputType, typename resultType>
-rknnPool<rknnModel, inputType, resultType>::rknnPool(const std::string& modelPath, int threadNum, ResultQueue<resultType>& resultQueue)
+rknnPool<rknnModel, inputType, resultType>::rknnPool(const std::string& modelPath, int threadNum, MutexQueue& resultQueue)
     : modelPath_(modelPath), threadNum_(threadNum), resultQueue_(resultQueue), id_(0){
     pool_ = std::make_unique<dpool::ThreadPool>(threadNum);
 }
@@ -40,6 +40,7 @@ int rknnPool<rknnModel, inputType, resultType>::put(inputType inputData, uint64_
         {
             std::unique_lock<std::mutex> resultLock(model->resultMtx_); // 使用 resultMtx_ 锁
             model->cv_.wait(resultLock, [model] { return model->dataReady_; });
+            // model->cv_.wait_for(resultLock, std::chrono::milliseconds(1000), [model] { return model->dataReady_; });
 
             // 重置数据状态
             model->dataReady_ = false;
@@ -49,7 +50,7 @@ int rknnPool<rknnModel, inputType, resultType>::put(inputType inputData, uint64_
         }
 
         // 将帧ID存储到结果中
-        resultQueue_.push(result, frameID);
+        resultQueue_.setResult(frameID, result);
     }));
 
     return 0;

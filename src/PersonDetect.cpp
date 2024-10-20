@@ -129,6 +129,7 @@ int PerDet::infer(const cv::Mat& inputData) {
     std::lock_guard<std::mutex> lock(mtx_);
     cv::Mat img;
     int ret;
+    result_.ready_ = false;
     cv::cvtColor(inputData, img, cv::COLOR_BGR2RGB);
     img_width_ = img.cols;
     img_height_ = img.rows;
@@ -191,8 +192,8 @@ int PerDet::infer(const cv::Mat& inputData) {
     char text[256];
     for (int i = 0; i < detect_result_group.count; i++) {
         detect_result_t *det_result = &(detect_result_group.results[i]);
-        sprintf(text, "%s %.1f%%", det_result->name, det_result->prop * 100);
-        // 打印预测物体的信息/Prints information about the predicted object
+        // sprintf(text, "%s %.1f%%", det_result->name, det_result->prop * 100);
+        // // 打印预测物体的信息/Prints information about the predicted object
         // printf("%s @ (%d %d %d %d) %f\n", det_result->name, det_result->box.left, det_result->box.top,
         //        det_result->box.right, det_result->box.bottom, det_result->prop);
         int x1 = det_result->box.left;
@@ -236,6 +237,7 @@ int PerDet::infer(const cv::Mat& inputData) {
             result_.detections.push_back(detection);          // 将转换后的 Detection 添加到 detections 中
         }
         dataReady_ = true;              // 标记数据已更新
+        result_.ready_ = true;
         cv_.notify_one();               // 通知等待的线程有新数据
     }
     // 绘制跟踪框
@@ -364,7 +366,7 @@ int PerDet::infer(const cv::Mat& inputData) {
 
     // 计算推理时间
     std::chrono::duration<double, std::milli> duration = end - start;
-    std::cout << "Inference time: " << duration.count() << " ms" << std::flush;
+    // std::cout << "Inference time: " << duration.count() << " ms" << std::flush;
     // 保存热力图
     // cv::imwrite("test_result.jpg", colorHeatmap);
     // return blended;

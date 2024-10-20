@@ -15,6 +15,23 @@ struct FireSmokeDetection {
 // 火焰烟雾检测结果结构体
 struct FireSmokeDetResult {
     std::vector<FireSmokeDetection> detections;   // 火焰烟雾检测结果列表
+    bool ready_; // 标志检测结果是否准备好
+
+    // 默认构造函数
+    FireSmokeDetResult() : ready_(false) {} // 初始化 ready 为 false
+
+    // 复制构造函数
+    FireSmokeDetResult(const FireSmokeDetResult& other) 
+        : detections(other.detections), ready_(other.ready_) {}
+
+    // 赋值操作符
+    FireSmokeDetResult& operator=(const FireSmokeDetResult& other) {
+        if (this != &other) { // 防止自我赋值
+            detections = other.detections; // 深拷贝 detections
+            ready_ = other.ready_; // 复制 ready
+        }
+        return *this;
+    }
 };
 
 

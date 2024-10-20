@@ -132,7 +132,7 @@ int FallDet::infer(const cv::Mat& inputData) {
     std::cout << "V" << std::flush;
     std::lock_guard<std::mutex> lock(mtx_);
     cv::Mat img;
-
+    result_.ready_ = false;
     // 获取并输出图像宽度和高度
     img_width_ = inputData.cols;
     img_height_ = inputData.rows;
@@ -260,6 +260,7 @@ int FallDet::infer(const cv::Mat& inputData) {
             std::cout << "No valid indices" << std::flush;
         }
         // cv::imwrite("result.jpg", result);
+        result_.ready_ = true;
         dataReady_ = true;              // 标记数据已更新
         cv_.notify_one();               // 通知等待的线程有新数据
     }
