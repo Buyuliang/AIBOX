@@ -133,6 +133,10 @@ void inferenceThread(rknnPool<PerDet, cv::Mat, PerDetResult>& perDetPool,
         }
 
         ImageData* imageData = g_imageData.front();
+        if (!imageData) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            continue; 
+        }
         cv::Mat frame = imageData->frame.clone();
 
         // 创建线程来并行执行 put 操作
