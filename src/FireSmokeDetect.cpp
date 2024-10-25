@@ -130,15 +130,13 @@ rknn_context* FireSmokeDet::get_rknn_context() {
 }
 
 int FireSmokeDet::infer(const cv::Mat& inputData) {
-    // std::this_thread::sleep_for(std::chrono::seconds(1));  // 休眠 1 秒
-    std::cout << "V" << std::flush;
     std::lock_guard<std::mutex> lock(mtx_);
     cv::Mat img;
 
     // 获取并输出图像宽度和高度
     img_width_ = inputData.cols;
     img_height_ = inputData.rows;
-    std::cout << "Image Width: " << img_width_ << ", Height: " << img_height_ << std::endl;
+    // std::cout << "Image Width: " << img_width_ << ", Height: " << img_height_ << std::endl;
 
     // 调整图像大小并转换为 RGB 格式
     cv::resize(inputData, img, cv::Size(640, 640));
@@ -190,7 +188,7 @@ int FireSmokeDet::infer(const cv::Mat& inputData) {
     // cv::Mat result = test_postprocess(imgData, outputs_vec, img_width_, img_height_);
     int rows =  outputs_vec.size();
     // int rows = outputs_vec[0].size();
-    printf("rows size: %d\n", rows);
+    // printf("rows size: %d\n", rows);
     std::vector<cv::Rect> boxes;
     std::vector<float> scores;
     std::vector<int> class_ids;
@@ -255,13 +253,17 @@ int FireSmokeDet::infer(const cv::Mat& inputData) {
                 det.box = boxes[idx];                  // 设置检测框
                 // 将检测结果添加到结果结构体中
                 result_.detections.push_back(det);
+                // std::cout << "Bounding Box: ("
+                //           << det.box.x << ", "
+                //           << det.box.y << ", "
+                //           << det.box.width << ", "
+                //           << det.box.height << ")\n" << std::flush;
                 // drawDetections(input_image, boxes[idx], scores[idx], class_ids[idx]);
             }
-        } else {
-            std::cout << "No valid indices" << std::flush;
         }
-        // cv::imwrite("result.jpg", result);
+
         dataReady_ = true;              // 标记数据已更新
+        result_.ready_ = true;
         cv_.notify_one();               // 通知等待的线程有新数据
     }
     return 0;

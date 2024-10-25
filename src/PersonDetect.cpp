@@ -123,8 +123,6 @@ rknn_context* PerDet::get_rknn_context() {
 }
 
 int PerDet::infer(const cv::Mat& inputData) {
-    // std::this_thread::sleep_for(std::chrono::seconds(1));  // 休眠 1 秒
-    std::cout << "*" << std::flush;
     auto start = std::chrono::high_resolution_clock::now();
     std::lock_guard<std::mutex> lock(mtx_);
     cv::Mat img;
@@ -209,8 +207,8 @@ int PerDet::infer(const cv::Mat& inputData) {
     std::vector<DetectionBox> detections;
     for (int i = 0; i < detect_result_group.count; i++) {
         detect_result_t *det_result = &(detect_result_group.results[i]);
-        if (det_result->prop * 100 >= box_conf_threshold_) { // 置信度过滤 
-        // if (det_result->prop * 100 >= box_conf_threshold_ && strcmp(det_result->name, "person") == 0) // 置信度过滤
+        // if (det_result->prop * 100 >= box_conf_threshold_) { // 置信度过滤 
+        if (det_result->prop * 100 >= box_conf_threshold_ && strcmp(det_result->name, "person") == 0) {
             DetectionBox detection;
             detection.box = {det_result->box.left, det_result->box.top, 
                              det_result->box.right - det_result->box.left, 

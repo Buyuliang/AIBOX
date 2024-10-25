@@ -128,15 +128,14 @@ rknn_context* FallDet::get_rknn_context() {
 }
 
 int FallDet::infer(const cv::Mat& inputData) {
-    // std::this_thread::sleep_for(std::chrono::seconds(1));  // 休眠 1 秒
-    std::cout << "V" << std::flush;
+    auto start = std::chrono::high_resolution_clock::now();
     std::lock_guard<std::mutex> lock(mtx_);
     cv::Mat img;
     result_.ready_ = false;
     // 获取并输出图像宽度和高度
     img_width_ = inputData.cols;
     img_height_ = inputData.rows;
-    std::cout << "Image Width: " << img_width_ << ", Height: " << img_height_ << std::endl;
+    // std::cout << "Image Width: " << img_width_ << ", Height: " << img_height_ << std::endl;
 
     // 调整图像大小并转换为 RGB 格式
     cv::resize(inputData, img, cv::Size(640, 640));
@@ -188,7 +187,7 @@ int FallDet::infer(const cv::Mat& inputData) {
     // cv::Mat result = test_postprocess(imgData, outputs_vec, img_width_, img_height_);
     int rows =  outputs_vec.size();
     // int rows = outputs_vec[0].size();
-    printf("rows size: %d\n", rows);
+    // printf("rows size: %d\n", rows);
     std::vector<cv::Rect> boxes;
     std::vector<float> scores;
     std::vector<int> class_ids;
@@ -213,34 +212,39 @@ int FallDet::infer(const cv::Mat& inputData) {
         // 如果最大得分超过阈值
         if (max_score >= 0.5f) {
             int class_id = std::distance(classes_scores.begin(), std::max_element(classes_scores.begin(), classes_scores.end()));
+            if (class_id == 0) { // {0: 'down', 1: 'person'}
+                // 获取边界框坐标
+                float x = row[0];
+                float y = row[1];
+                float w = row[2];
+                float h = row[3];
 
-            // 获取边界框坐标
-            float x = row[0];
-            float y = row[1];
-            float w = row[2];
-            float h = row[3];
+                // 缩放边界框坐标
+                int left = static_cast<int>((x - w / 2) * x_factor);
+                int top = static_cast<int>((y - h / 2) * y_factor);
+                int width = static_cast<int>(w * x_factor);
+                int height = static_cast<int>(h * y_factor);
 
-            // 缩放边界框坐标
-            int left = static_cast<int>((x - w / 2) * x_factor);
-            int top = static_cast<int>((y - h / 2) * y_factor);
-            int width = static_cast<int>(w * x_factor);
-            int height = static_cast<int>(h * y_factor);
-
-            // 添加结果
-            boxes.push_back(cv::Rect(left, top, width, height));
-            scores.push_back(max_score);
-            class_ids.push_back(class_id);
-            // printf("box[%d]: (%lf, %lf, %lf, %lf)\n", i, left, top, width, height);
-            // drawDetections(input_image, cv::Rect(left, top, width, height), max_score, class_id);
+                // 添加结果
+                boxes.push_back(cv::Rect(left, top, width, height));
+                scores.push_back(max_score);
+                class_ids.push_back(class_id);
+                // printf("box[%d]: (%lf, %lf, %lf, %lf)\n", i, left, top, width, height);
+                // drawDetections(input_image, cv::Rect(left, top, width, height), max_score, class_id);
+            }
         }
     }
 
     // 非极大值抑制
     std::vector<int> indices;
     cv::dnn::NMSBoxes(boxes, scores, 0.5f, 0.01f, indices);
+    auto end = std::chrono::high_resolution_clock::now();
 
-    // 释放输出
-    std::cout << "det done" << std::flush;
+    // 计算推理时间
+    std::chrono::duration<double, std::milli> duration = end - start;
+    // std::cout << "Inference time: " << duration.count() << " ms\n" << std::flush;
+    // // 释放输出
+    // std::cout << "det done\n" << std::flush;
     rknn_outputs_release(ctx_, io_num_.n_output, outputs_);
     {
         std::lock_guard<std::mutex> lock(resultMtx_);
@@ -256,8 +260,6 @@ int FallDet::infer(const cv::Mat& inputData) {
                 result_.detections.push_back(det);
                 // drawDetections(input_image, boxes[idx], scores[idx], class_ids[idx]);
             }
-        } else {
-            std::cout << "No valid indices" << std::flush;
         }
         // cv::imwrite("result.jpg", result);
         result_.ready_ = true;

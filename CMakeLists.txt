@@ -4,7 +4,7 @@ project(aibox)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_FLAGS "-pthread -g")
+set(CMAKE_CXX_FLAGS "-pthread")
 
 set(EXECUTABLE_NAME "aibox")
 
@@ -29,6 +29,11 @@ set(RGA_LIB ${RGA_PATH}/lib/Linux/${LIB_ARCH}/librga.so)
 
 # opencv
 find_package(OpenCV REQUIRED)
+
+# json
+set(JSONCPP_INCLUDE_DIR "/usr/include/jsoncpp")
+set(JSONCPP_LIB_DIR "/usr/lib/aarch64-linux-gnu/libjsoncpp.so")
+include_directories(${JSONCPP_INCLUDE_DIR})
 
 # module
 set(MODULE_PATH ${CMAKE_SOURCE_DIR}/model)
@@ -59,6 +64,7 @@ target_link_libraries(aibox
   ${RKNN_RT_LIB}
   ${OpenCV_LIBS}
   ${RGA_LIB}
+  ${JSONCPP_LIB_DIR}
 )
 
 # install target and libraries
