@@ -126,7 +126,7 @@ auto lastTime = std::chrono::high_resolution_clock::now();  // 记录开始时�
 void inferenceThread(rknnPool<PerDet, cv::Mat, PerDetResult>& perDetPool,
                      rknnPool<FallDet, cv::Mat, FallDetResult>& fallDetPool,
                      rknnPool<FireSmokeDet, cv::Mat, FireSmokeDetResult>& fireSmokeDetPool, ExitFlags& flags) {
-    while (!flags.infer_exit) {
+    while (!flags.cap_exit && !flags.infer_exit) {
         if (g_imageData.empty()) {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
             continue;
