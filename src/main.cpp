@@ -262,7 +262,7 @@ void resultProcessingThread(ExitFlags& flags) {
                 cv::putText(perDetImage, countText, cv::Point(10, 30), cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(255, 255, 255), 2);
 
                 cv::imwrite("output/perdet/" + timeStr + ".png", perDetImage);
-                std::ofstream perdetFile("output/perdet/" + timeStr + ".txt");
+                std::ofstream perdetFile("output/perdet/" + timeStr + ".json");
                 perdetFile << root["personDetections"].toStyledString();  // 写入 JSON 数据
                 // std::cout << root["personDetections"].toStyledString() << std::flush;
                 perdetFile.close();
@@ -304,7 +304,7 @@ void resultProcessingThread(ExitFlags& flags) {
 
                 // 保存原始跌倒检测结果图像
                 cv::imwrite("output/falldet/" + timeStr + ".png", fallDetImage);
-                std::ofstream falldetFile("output/falldet/" + timeStr + ".txt");
+                std::ofstream falldetFile("output/falldet/" + timeStr + ".json");
                 falldetFile << root["fallDetections"].toStyledString();  // 写入 JSON 数据
                 // std::cout << root["fallDetections"].toStyledString() << std::flush;
                 falldetFile.close();
@@ -352,7 +352,7 @@ void resultProcessingThread(ExitFlags& flags) {
 
                 // 保存原始火焰烟雾检测结果图像
                 cv::imwrite("output/firesmokedet/" + timeStr + ".png", fireSmokeDetImage);
-                std::ofstream firesmokeFile("output/firesmokedet/" + timeStr + ".txt");
+                std::ofstream firesmokeFile("output/firesmokedet/" + timeStr + ".json");
                 firesmokeFile << root["fireSmokeDetections"].toStyledString();  // 写入 JSON 数据
                 // std::cout << root["fireSmokeDetections"].toStyledString() << std::flush;
                 firesmokeFile.close();
@@ -367,7 +367,7 @@ void resultProcessingThread(ExitFlags& flags) {
             // 保存合成的结果图像
             cv::putText(origImage, countText, cv::Point(10, 30), cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(255, 255, 255), 2);
             cv::imwrite("output/result/" + timeStr + ".png", origImage);
-            std::ofstream resultFile("output/result/" + timeStr + ".txt");
+            std::ofstream resultFile("output/result/" + timeStr + ".json");
             resultFile << root.toStyledString(); 
         }
         // 休眠
