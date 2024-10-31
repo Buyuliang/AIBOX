@@ -36,7 +36,24 @@ set(JSONCPP_LIB_DIR "/usr/lib/aarch64-linux-gnu/libjsoncpp.so")
 include_directories(${JSONCPP_INCLUDE_DIR})
 
 # module
-set(MODULE_PATH ${CMAKE_SOURCE_DIR}/model)
+# Run commands to read device information
+execute_process(
+    COMMAND cat /proc/device-tree/compatible
+    OUTPUT_VARIABLE DEVICE_COMPATIBLE
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+# Check that the keyword is included in DEVICE_COMPATIBLE
+if(DEVICE_COMPATIBLE MATCHES "rk3588")
+    set(MODULE_PATH "${CMAKE_SOURCE_DIR}/model/rk3588")
+elseif(DEVICE_COMPATIBLE MATCHES "rk3568")
+    set(MODULE_PATH "${CMAKE_SOURCE_DIR}/model/rk3568")
+else()
+    message(FATAL_ERROR "Unknown device: Compatible string does not contain 'rk3588' or 'rk3568'")
+endif()
+
+message(STATUS "Selected MODULE_PATH: ${MODULE_PATH}")
+# set(MODULE_PATH ${CMAKE_SOURCE_DIR}/model)
 
 # include_directories(${RKNN_API_PATH}/include)
 include_directories(${CMAKE_SOURCE_DIR}/include)
@@ -71,4 +88,6 @@ target_link_libraries(aibox
 install(TARGETS ${EXECUTABLE_NAME} DESTINATION ./)
 install(PROGRAMS ${RKNN_RT_LIB} DESTINATION lib)
 install(PROGRAMS ${RGA_LIB} DESTINATION lib)
-install(DIRECTORY ${MODULE_PATH} DESTINATION ./)
+install(DIRECTORY ${MODULE_PATH}/
+        DESTINATION model
+        FILES_MATCHING PATTERN "*")

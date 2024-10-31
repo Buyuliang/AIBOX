@@ -40,12 +40,12 @@ int FallDet::init(const std::string& modelPath) {
         return -1;
     }
 
-    // 绑定核心处理器
-    ret = rknn_set_core_mask(ctx_, RKNN_NPU_CORE_2);
-    if (ret < 0) {
-        std::cerr << "Failed to set core mask, error code: " << ret << std::endl;
-        return -1;
-    }
+    // // 绑定核心处理器
+    // ret = rknn_set_core_mask(ctx_, RKNN_NPU_CORE_2);
+    // if (ret < 0) {
+    //     std::cerr << "Failed to set core mask, error code: " << ret << std::endl;
+    //     return -1;
+    // }
 
     // 查询 SDK 版本信息
     rknn_sdk_version version;

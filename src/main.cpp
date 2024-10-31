@@ -20,14 +20,7 @@ std::vector<cv::Point> polygon = {
     cv::Point(400, 300)
 };
 
-const std::string modelPath = "/home/mixtile/aiBox/model/";
-const std::string modelPathPerDet = modelPath + "perdet.rknn";
-const std::string modelPathPerAttr = modelPath + "perattr.rknn";
-const std::string modelPathFallDet = modelPath + "falldet.rknn";
-const std::string modelPathFireSmokeDet = modelPath + "firesmoke.rknn";
 int threadNum = 1;
-
-
 std::atomic<uint64_t> frameID{0}; // 帧ID
 
 std::string getCurrentTimeStr() {
@@ -117,9 +110,9 @@ auto lastTime = std::chrono::high_resolution_clock::now();  // 记录开始时�
 
         if (currentFrameID % 6 == 0)
             g_imageData.push(currentFrameID, inputImage.clone()); // 使用 clone()
-
-        cv::imshow("Detection.png", inputImage);
-        cv::waitKey(1);
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        // cv::imshow("Detection.png", inputImage);
+        // cv::waitKey(1);
     }
 }
 
@@ -179,7 +172,7 @@ void resultProcessingThread(ExitFlags& flags) {
         }
 
         std::unique_lock<std::mutex> lock(resultMutex);
-        resultReadyCond.wait_for(lock, std::chrono::milliseconds(150), [] {
+        resultReadyCond.wait_for(lock, std::chrono::milliseconds(400), [] {
             return !g_frameData.empty() &&
                 g_frameData.front()->perDetResult.ready_ &&
                 g_frameData.front()->fallDetResult.ready_ &&
@@ -379,6 +372,14 @@ void resultProcessingThread(ExitFlags& flags) {
 }
 
 int main(int argc, char* argv[]) {
+
+    const std::string modelPath = std::filesystem::current_path().string() + "/model/";
+    std::cout << "Current working directory: " << modelPath << std::endl;
+    const std::string modelPathPerDet = modelPath + "perdet.rknn";
+    const std::string modelPathPerAttr = modelPath + "perattr.rknn";
+    const std::string modelPathFallDet = modelPath + "falldet.rknn";
+    const std::string modelPathFireSmokeDet = modelPath + "firesmoke.rknn";
+
     // 检查命令行参数数量
     if (argc < 2) {
         std::cerr << "Error: Not enough arguments provided." << std::endl;
