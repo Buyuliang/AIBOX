@@ -31,11 +31,19 @@ std::string getCurrentTimeStr() {
     return std::string(buffer);
 }
 
-void signalHandler(int signum) {
-    std::cout << "\nInterrupt signal (" << signum << ") received. Exiting program..." << std::endl;
+void exit_frees() {
     g_flags.cap_exit = true;
     g_flags.infer_exit = true;
     g_flags.result_exit = true;
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    g_imageData.clear();
+    g_frameData.clear();
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+}
+
+void signalHandler(int signum) {
+    std::cout << "\nInterrupt signal (" << signum << ") received. Exiting program..." << std::endl;
+    exit_frees();
     exit(signum); 
 }
 
@@ -68,17 +76,13 @@ auto lastTime = std::chrono::high_resolution_clock::now();  // 记录开始时�
         auto currentFrameTime = std::chrono::high_resolution_clock::now();  // 每帧的时间
 
         if (!capture.read(inputImage)) {
-            flags.cap_exit = true;
-            flags.infer_exit = true;
-            flags.result_exit = true;
-            g_imageData.clear();
-            g_frameData.clear();
-            std::cout << "capture break" << std::flush;
-            break;
+            std::cout << "capture exit\n" << std::flush;
+            exit_frees();
+            exit(0);
         }
 
         if (inputImage.empty()) {
-            std::cout << "inputImage empty" << std::flush;
+            std::cout << "inputImage empty\n" << std::flush;
             continue;
         }
 
@@ -88,7 +92,7 @@ auto lastTime = std::chrono::high_resolution_clock::now();  // 记录开始时�
         // 检查帧ID是否溢出
         if (currentFrameID >= MAX_FRAME_ID) {
             frameID.store(0); // 重置帧ID
-            std::cout << "reset ID" << std::flush;
+            std::cout << "reset ID\n" << std::flush;
         }
 
         // 每帧递增帧数
@@ -101,7 +105,7 @@ auto lastTime = std::chrono::high_resolution_clock::now();  // 记录开始时�
         // 如果超过1秒，计算一次FPS并重置帧数
         if (elapsedTime.count() >= 1.0) {
             fps = frameCount / elapsedTime.count();  // 计算 FPS
-            std::cout << "FPS: " << fps << " frames per second" << std::endl;
+            std::cout << "FPS: " << fps << " frames per second\n" << std::endl;
             
             // 重置时间和帧数
             lastTime = currentTime;
