@@ -30,6 +30,9 @@ set(RGA_LIB ${RGA_PATH}/lib/Linux/${LIB_ARCH}/librga.so)
 # opencv
 find_package(OpenCV REQUIRED)
 
+# SQLite3
+find_package(SQLite3 REQUIRED)
+
 # json
 set(JSONCPP_INCLUDE_DIR "/usr/include/jsoncpp")
 set(JSONCPP_LIB_DIR "/usr/lib/aarch64-linux-gnu/libjsoncpp.so")
@@ -82,6 +85,7 @@ target_link_libraries(aibox
   ${OpenCV_LIBS}
   ${RGA_LIB}
   ${JSONCPP_LIB_DIR}
+  SQLite::SQLite3
 )
 
 # install target and libraries

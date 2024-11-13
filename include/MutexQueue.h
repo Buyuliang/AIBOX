@@ -9,6 +9,8 @@
 
 struct ImageData {
     uint64_t frameID; // 帧ID
+    std::string timestamp;
+    std::string ip;
     cv::Mat frame; // 原始图像
 };
 
@@ -40,9 +42,46 @@ public:
         }
     }
 
+    void push(uint64_t frameID, const cv::Mat& frame, const std::string& timestamp, const std::string& ip) {
+        std::lock_guard<std::mutex> lock(mutex_);
+
+        // 更新队列
+        queue_[head_].frameID = frameID; // 设置帧ID
+        queue_[head_].frame = frame.clone(); // 深拷贝图像
+        queue_[head_].timestamp = timestamp; // 设置时间戳
+        queue_[head_].ip = ip; // 设置 IP 地址
+
+        // 更新映射
+        idMap_[frameID] = head_;
+
+        // 更新头指针
+        head_ = (head_ + 1) % capacity_;
+
+        // 如果队列未满，增加大小
+        if (size_ < capacity_) {
+            size_++;
+        } else {
+            // 移除旧数据的 ID 映射
+            idMap_.erase(queue_[(head_ + capacity_ - 1) % capacity_].frameID);
+        }
+    }
+
+
+    // void pop() {
+    //     std::lock_guard<std::mutex> lock(mutex_);
+    //     if (size_ == 0) return; // 如果队列为空，直接返回
+    //     idMap_.erase(queue_[tail_].frameID); // 移除旧数据的 ID 映射
+    //     tail_ = (tail_ + 1) % capacity_; // 更新尾指针
+    //     size_--;
+    // }
+
     void pop() {
         std::lock_guard<std::mutex> lock(mutex_);
         if (size_ == 0) return; // 如果队列为空，直接返回
+
+        // 释放当前尾部的数据中的图像资源
+        queue_[tail_].frame.release(); // 显式释放图像内存（注意：调用 release 不是必须的，但能确保图像数据被释放）
+
         idMap_.erase(queue_[tail_].frameID); // 移除旧数据的 ID 映射
         tail_ = (tail_ + 1) % capacity_; // 更新尾指针
         size_--;
@@ -106,9 +145,43 @@ public:
         }
     }
 
+    void push(uint64_t frameID, const cv::Mat& frame, const std::string& timestamp, const std::string& ip) {
+        std::lock_guard<std::mutex> lock(mutex_);
+
+        // 创建 FrameData 对象，并设置图像数据
+        FrameData frameData;
+        frameData.imageData.frameID = frameID;    // 设置帧ID
+        frameData.imageData.frame = frame.clone(); // 深拷贝图像
+        frameData.imageData.timestamp = timestamp;  // 设置时间戳
+        frameData.imageData.ip = ip;                // 设置 IP 地址
+
+        queue_[head_] = frameData; // 替换当前位置的数据
+        idMap_[frameID] = head_;   // 更新映射
+        head_ = (head_ + 1) % capacity_; // 更新头指针
+
+        if (size_ < capacity_) {
+            size_++; // 队列未满，增加大小
+        } else {
+            // 移除旧数据的 ID 映射
+            idMap_.erase(queue_[(head_ + capacity_ - 1) % capacity_].imageData.frameID);
+        }
+    }
+
+    // void pop() {
+    //     std::lock_guard<std::mutex> lock(mutex_);
+    //     if (size_ == 0) return; // 如果队列为空，直接返回
+    //     idMap_.erase(queue_[tail_].imageData.frameID); // 移除旧数据的 ID 映射
+    //     tail_ = (tail_ + 1) % capacity_; // 更新尾指针
+    //     size_--;
+    // }
+
     void pop() {
         std::lock_guard<std::mutex> lock(mutex_);
         if (size_ == 0) return; // 如果队列为空，直接返回
+
+        // 释放当前尾部的数据中的图像资源
+        queue_[tail_].imageData.frame.release(); // 显式释放图像内存（注意：调用 release 不是必须的，但能确保图像数据被释放）
+
         idMap_.erase(queue_[tail_].imageData.frameID); // 移除旧数据的 ID 映射
         tail_ = (tail_ + 1) % capacity_; // 更新尾指针
         size_--;

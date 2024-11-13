@@ -7,6 +7,8 @@
 
 ImageDataQueue g_imageData(QUEUE_LENGTH);
 MutexQueue g_frameData(QUEUE_LENGTH);
+
+static std::string rtsp_url;
 ExitFlags g_flags;
 // 添加条件变量和锁
 std::condition_variable resultReadyCond;
@@ -61,6 +63,42 @@ void drawPolygon(cv::Mat& image, const std::vector<cv::Point>& polygon) {
     cv::polylines(image, points, numberOfPoints, 1, true, cv::Scalar(0, 255, 0), 2, cv::LINE_AA);
 }
 
+std::string extract_ip(const std::string& rtsp_url) {
+    std::regex ip_regex(R"((\d{1,3}\.){3}\d{1,3})"); // 匹配IPv4地址的正则表达式
+    std::smatch match;
+    if (std::regex_search(rtsp_url, match, ip_regex) && !match.empty()) {
+        return match.str();
+    }
+    return "0.0.0.0"; // 默认值，如果没有找到IP
+}
+
+// 插入 RTSP 相关信息到数据库
+void insertRTSPLog(sqlite3* db, const std::string& timestamp, const std::string& ip_address, const std::string& rtsp_url) {
+    const char* sql = "INSERT INTO rtsp_logs (timestamp, ip_address, rtsp_url) VALUES (?1, ?2, ?3);";
+    sqlite3_stmt* stmt;
+
+    // Prepare SQL statement
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, 0) != SQLITE_OK) {
+        std::cerr << "Error preparing statement: " << sqlite3_errmsg(db) << std::endl;
+        return;
+    }
+
+    // Bind parameters
+    sqlite3_bind_text(stmt, 1, timestamp.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 2, ip_address.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 3, rtsp_url.c_str(), -1, SQLITE_STATIC);
+
+    // Execute the statement
+    if (sqlite3_step(stmt) != SQLITE_DONE) {
+        std::cerr << "Error executing statement: " << sqlite3_errmsg(db) << std::endl;
+    } else {
+        std::cout << "Log inserted successfully!" << std::endl;
+    }
+
+    // Finalize the statement
+    sqlite3_finalize(stmt);
+}
+
 void captureFrames(ExitFlags& flags, const std::string& frameSrc) {
     // cv::VideoCapture capture("rtsp://192.168.202.217:554/stream1");
     // cv::VideoCapture capture("/dev/video1");
@@ -105,16 +143,28 @@ auto lastTime = std::chrono::high_resolution_clock::now();  // 记录开始时�
         // 如果超过1秒，计算一次FPS并重置帧数
         if (elapsedTime.count() >= 1.0) {
             fps = frameCount / elapsedTime.count();  // 计算 FPS
-            std::cout << "FPS: " << fps << " frames per second\n" << std::endl;
+            // std::cout << "FPS: " << fps << " frames per second\n" << std::endl;
             
             // 重置时间和帧数
             lastTime = currentTime;
             frameCount = 0;
         }
 
-        if (currentFrameID % 6 == 0)
-            g_imageData.push(currentFrameID, inputImage.clone()); // 使用 clone()
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        std::time_t now = std::time(nullptr);
+        std::tm* local_time = std::localtime(&now);
+        std::ostringstream oss;
+        oss << std::put_time(local_time, "%Y-%m-%d %H:%M:%S");
+        std::string timestamp = oss.str();
+
+        // 将数据插入数据库
+        // insertRTSPLog(db, timestamp, extract_ip(), frameSrc);
+
+        // if (currentFrameID % 10 == 0)
+            // g_imageData.push(currentFrameID, inputImage.clone()); // 使用 clone()
+        g_imageData.push(currentFrameID, inputImage, timestamp, extract_ip(frameSrc));
+        // g_frameData.push(currentFrameID, inputImage, timestamp, extract_ip(frameSrc));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        std::cout << "." << std::flush;
         // cv::imshow("Detection.png", inputImage);
         // cv::waitKey(1);
     }
@@ -130,6 +180,7 @@ void inferenceThread(rknnPool<PerDet, cv::Mat, PerDetResult>& perDetPool,
         }
 
         ImageData* imageData = g_imageData.front();
+        // ImageData* frameData = g_frameData.front();
         if (!imageData) {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
             continue; 
@@ -149,7 +200,8 @@ void inferenceThread(rknnPool<PerDet, cv::Mat, PerDetResult>& perDetPool,
             fireSmokeDetPool.put(frame, id);
         });
 
-        g_frameData.push(imageData->frameID, frame);
+        // g_frameData.push(imageData->frameID, frame);
+        g_frameData.push(imageData->frameID, frame, imageData->timestamp, extract_ip(rtsp_url));
         g_imageData.pop();
 
         // 等待所有线程完成
@@ -365,19 +417,22 @@ void resultProcessingThread(ExitFlags& flags) {
             cv::putText(origImage, countText, cv::Point(10, 30), cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(255, 255, 255), 2);
             cv::imwrite("output/result/" + timeStr + ".png", origImage);
             std::ofstream resultFile("output/result/" + timeStr + ".json");
-            resultFile << root.toStyledString(); 
+            resultFile << root.toStyledString();
+            // DatabaseManager dbManager("data.db");
+            // dbManager.insertLog(frameData->imageData.timestamp, frameData->imageData.ip, rtsp_url, root.toStyledString());
         }
         // 休眠
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        // std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
         // 移除已处理的帧数据
         g_frameData.pop();
+        std::cout << "_" << std::flush;
     }
 }
 
 int main(int argc, char* argv[]) {
 
-    const std::string modelPath = std::filesystem::current_path().string() + "/model/";
+    const std::string modelPath = std::filesystem::path(argv[0]).parent_path().string() + "/model/";
     std::cout << "Current working directory: " << modelPath << std::endl;
     const std::string modelPathPerDet = modelPath + "perdet.rknn";
     const std::string modelPathPerAttr = modelPath + "perattr.rknn";
@@ -390,9 +445,13 @@ int main(int argc, char* argv[]) {
         std::cerr << "Usage: " << argv[0] << " <image_source>" << std::endl;
         return 1;
     }
+    //    // 创建数据库实例
+    // DatabaseManager dbManager("date.db");
+
     signal(SIGINT, signalHandler);
     // 从命令行参数获取图像源
     std::string frameSrc = argv[1];
+    rtsp_url = argv[1];
     std::cout << "Using image source: " << frameSrc << std::endl;
 
     // 初始化模型池

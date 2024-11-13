@@ -14,6 +14,8 @@
 #include <json/json.h>
 #include <filesystem>
 #include <csignal>
+#include <DatabaseManager.h>
+#include <regex>
 
 #define QUEUE_LENGTH 1000
 #define MAX_FRAME_ID (QUEUE_LENGTH + 1)
