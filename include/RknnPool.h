@@ -35,7 +35,7 @@ public:
     int init();
 
     // 模型推理：将输入数据放入线程池进行处理
-    int put(inputType inputData, uint64_t frameID);
+    int put(inputType inputData, uint64_t frameID, uint64_t ID = 0);
 
     // 获取推理结果：从 future 队列中获取推理结果
     // int get(DetectionResult& outputData);

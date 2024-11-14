@@ -3,19 +3,42 @@
 
 #include "BaseModel.h"
 #include <vector>
-#include <string>         // 确保包含string头文件
 #include <opencv2/core.hpp> // 确保包含OpenCV核心模块
 
-// 结构体定义，用于存储人物属性检测结果
-struct PerAttrResult {
-    cv::Rect faceBox;         // 人脸框
-    int age;                  // 年龄
-    std::string emotion;      // 情绪
+// 结构体定义，用于存储检测结果
+struct PerAttrDetection {
+    int id;                          // 检测到的对象 ID
+    std::vector<float> attributes;   // 属性数据，使用浮点数表示概率
 };
 
-// 人物属性检测类，继承自BaseModel
+// 跌倒检测结果结构体
+struct PerAttrResult {
+    std::vector<PerAttrDetection> detections;
+    bool ready_; // 标志检测结果是否准备好
+
+    // 默认构造函数
+    PerAttrResult() : ready_(false) {} // 初始化 ready 为 false
+
+    // 复制构造函数
+    PerAttrResult(const PerAttrResult& other)
+        : detections(other.detections), ready_(other.ready_) {}
+
+    // 赋值操作符
+    PerAttrResult& operator=(const PerAttrResult& other) {
+        if (this != &other) { // 防止自我赋值
+            detections = other.detections; // 深拷贝 detections
+            ready_ = other.ready_; // 复制 ready
+        }
+        return *this;
+    }
+};
+
+// 类定义，继承自BaseModel
 class PerAttr : public BaseModel<PerAttrResult> {
 public:
+    // 默认构造函数
+    PerAttr();
+
     // 初始化模型
     int init(const std::string& modelPath) override;
 
@@ -28,8 +51,11 @@ public:
     // 获取检测结果
     PerAttrResult getResult() const;
 
+    // 默认构造函数
+    ~PerAttr();
+
 private:
-    PerAttrResult result_; // 存储检测结果
+    PerAttrResult result_;    // 存储检测结果
 };
 
 #endif // PERSONATTRIBUTE_H

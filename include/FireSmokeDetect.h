@@ -21,7 +21,7 @@ struct FireSmokeDetResult {
     FireSmokeDetResult() : ready_(false) {} // 初始化 ready 为 false
 
     // 复制构造函数
-    FireSmokeDetResult(const FireSmokeDetResult& other) 
+    FireSmokeDetResult(const FireSmokeDetResult& other)
         : detections(other.detections), ready_(other.ready_) {}
 
     // 赋值操作符
@@ -40,7 +40,7 @@ class FireSmokeDet : public BaseModel<FireSmokeDetResult> {
 public:
     // 默认构造函数
     FireSmokeDet();
- 
+
     // 初始化模型
     int init(const std::string& modelPath) override;
 

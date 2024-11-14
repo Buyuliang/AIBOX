@@ -25,9 +25,9 @@ int rknnPool<rknnModel, inputType, resultType>::getModelId() {
 }
 
 template <typename rknnModel, typename inputType, typename resultType>
-int rknnPool<rknnModel, inputType, resultType>::put(inputType inputData, uint64_t frameID) {
+int rknnPool<rknnModel, inputType, resultType>::put(inputType inputData, uint64_t frameID, uint64_t ID) {
     std::lock_guard<std::mutex> lock(queueMtx_); // 确保对 futs_ 的安全访问
-    futs_.push(pool_->submit([this, inputData, frameID]() {
+    futs_.push(pool_->submit([this, inputData, frameID, ID]() {
         // 获取当前模型ID
         int modelId = this->getModelId();
         auto& model = models_[modelId];
@@ -50,7 +50,7 @@ int rknnPool<rknnModel, inputType, resultType>::put(inputType inputData, uint64_
         }
 
         // 将帧ID存储到结果中
-        resultQueue_.setResult(frameID, result);
+        resultQueue_.setResult(frameID, result, ID);
     }));
 
     return 0;

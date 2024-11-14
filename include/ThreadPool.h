@@ -17,7 +17,7 @@ public:
     ~ThreadPool();
 
     template <typename Func>
-    std::future<void>  submit(Func &&task);
+    std::future<void> submit(Func &&task);
 
 private:
     void worker();

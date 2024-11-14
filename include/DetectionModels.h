@@ -26,3 +26,10 @@ struct ExitFlags {
     std::atomic<bool> infer_exit{false};
     std::atomic<bool> result_exit{false};
 };
+
+std::vector<std::string> attribute_labels = {
+    "Hat", "Glasses", "ShortSleeve", "LongSleeve", "UpperStride", "UpperLogo", "UpperPlaid", "UpperSplice",
+    "LowerStripe", "LowerPattern", "LongCoat", "Trousers", "Shorts", "Skirt&Dress", "Boots",
+    "HandBag", "ShoulderBag", "Backpack", "HoldObjectsInFront", "AgeOver60", "Age18-60", "AgeLess18",
+    "Female", "Front", "Side", "Back"
+};

@@ -198,17 +198,22 @@ public:
         return it != idMap_.end() ? &queue_[it->second] : nullptr; // 返回对应 FrameData 的指针
     }
 
-    FrameData* setResult(uint64_t frameID, const std::variant<PerDetResult, PerAttrResult, FallDetResult, FireSmokeDetResult>& result) {
+    FrameData* setResult(uint64_t frameID, const std::variant<PerDetResult, PerAttrResult, FallDetResult, FireSmokeDetResult>& result, uint64_t ID) {
         std::lock_guard<std::mutex> lock(mutex_);
         auto it = idMap_.find(frameID);
         if (it != idMap_.end()) {
             FrameData& frameData = queue_[it->second];
-            std::visit([&frameData](auto&& arg) {
+            std::visit([&frameData, ID](auto&& arg) {
                 using T = std::decay_t<decltype(arg)>;
                 if constexpr (std::is_same_v<T, PerDetResult>) {
                     frameData.perDetResult = arg; // 修改人检测结果
                 } else if constexpr (std::is_same_v<T, PerAttrResult>) {
-                    frameData.perAttrResult = arg; // 修改人属性检测结果
+                    if (!arg.detections.empty()) { // 修改人属性检测结果
+                        for (auto detection : arg.detections) {
+                            detection.id = ID;
+                            frameData.perAttrResult.detections.push_back(detection);
+                        }
+                    }
                 } else if constexpr (std::is_same_v<T, FallDetResult>) {
                     frameData.fallDetResult = arg; // 修改跌倒检测结果
                 } else if constexpr (std::is_same_v<T, FireSmokeDetResult>) {

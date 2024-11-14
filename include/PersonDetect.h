@@ -9,6 +9,7 @@
 struct PerDetection {
     int id;                          // 检测到的对象 ID
     cv::Rect_<float> box;            // 检测框，使用浮点数表示坐标
+    std::vector<float> attributes;   // 属性数据，使用浮点数表示概率
 };
 
 // 人物检测结果结构体
@@ -20,7 +21,7 @@ struct PerDetResult {
     PerDetResult() : ready_(false) {} // 初始化 ready 为 false
 
     // 复制构造函数
-    PerDetResult(const PerDetResult& other) 
+    PerDetResult(const PerDetResult& other)
         : detections(other.detections), ready_(other.ready_) {}
 
     // 赋值操作符

@@ -8,7 +8,7 @@ Deploy target detection, fall detection, flame, and smoke detection using the RK
 ``` bash
 aiBox/
 ├── build.sh            Build script
-├── CMakeLists.txt      
+├── CMakeLists.txt
 ├── include
 ├── lib
 ├── model               Model directory
@@ -72,7 +72,7 @@ aiBox/install/output/           Detection result directory
 {
 	"RegionCoun" : 6,
 	"frameID" : 60,
-	"personDetections" : 
+	"personDetections" :
 	[
 		{
 			"height" : 80.156204223632812,
@@ -135,7 +135,7 @@ aiBox/install/output/
 # Json 格式数据
 {
 	"RegionCoun" : 1,
-	"fallDetections" : 
+	"fallDetections" :
 	[
 		{
 			"height" : 265.0,
@@ -145,7 +145,7 @@ aiBox/install/output/
 			"y" : 246.0
 		}
 	],
-	"fireSmokeDetections" : 
+	"fireSmokeDetections" :
 	[
 		{
 			"height" : 89.0,
@@ -156,7 +156,7 @@ aiBox/install/output/
 		}
 	],
 	"frameID" : 354,
-	"personDetections" : 
+	"personDetections" :
 	[
 		{
 			"height" : 217.73216247558594,
@@ -197,7 +197,7 @@ aiBox/install/output/
 ```bash
 # Json 格式数据
 {
-	"fireSmokeDetections" : 
+	"fireSmokeDetections" :
 	[
 		{
 			"height" : 133.0,

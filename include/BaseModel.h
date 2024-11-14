@@ -5,7 +5,7 @@
 #include <mutex>
 #include <opencv2/opencv.hpp>
 #include "rknn_api.h"
-#include <condition_variable> 
+#include <condition_variable>
 
 template <typename ResultType>
 class BaseModel {

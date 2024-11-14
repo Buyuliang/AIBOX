@@ -10,6 +10,7 @@ MutexQueue g_frameData(QUEUE_LENGTH);
 
 static std::string rtsp_url;
 ExitFlags g_flags;
+std::atomic<bool> perattr_flags{false};
 // 添加条件变量和锁
 std::condition_variable resultReadyCond;
 std::mutex resultMutex;
@@ -104,16 +105,16 @@ void captureFrames(ExitFlags& flags, const std::string& frameSrc) {
     // cv::VideoCapture capture("/dev/video1");
     cv::VideoCapture capture(frameSrc);
     cv::Mat inputImage;
-
-// 初始化帧数和时间
-uint64_t frameCount = 0;
-double fps = 0.0;
-auto lastTime = std::chrono::high_resolution_clock::now();  // 记录开始时间
+    std::filesystem::create_directories("output/src");
+    // 初始化帧数和时间
+    uint64_t frameCount = 0;
+    double fps = 0.0;
+    auto lastTime = std::chrono::high_resolution_clock::now();  // 记录开始时间
 
     while (!flags.cap_exit) {
         auto currentFrameTime = std::chrono::high_resolution_clock::now();  // 每帧的时间
 
-        if (!capture.read(inputImage)) {
+        if (!(capture.isOpened() && capture.read(inputImage))) {
             std::cout << "capture exit\n" << std::flush;
             exit_frees();
             exit(0);
@@ -122,32 +123,6 @@ auto lastTime = std::chrono::high_resolution_clock::now();  // 记录开始时�
         if (inputImage.empty()) {
             std::cout << "inputImage empty\n" << std::flush;
             continue;
-        }
-
-        // 更新帧ID
-        uint64_t currentFrameID = frameID.fetch_add(1);
-
-        // 检查帧ID是否溢出
-        if (currentFrameID >= MAX_FRAME_ID) {
-            frameID.store(0); // 重置帧ID
-            std::cout << "reset ID\n" << std::flush;
-        }
-
-        // 每帧递增帧数
-        frameCount++;
-
-        // 计算经过的时间
-        auto currentTime = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> elapsedTime = currentTime - lastTime;
-
-        // 如果超过1秒，计算一次FPS并重置帧数
-        if (elapsedTime.count() >= 1.0) {
-            fps = frameCount / elapsedTime.count();  // 计算 FPS
-            // std::cout << "FPS: " << fps << " frames per second\n" << std::endl;
-            
-            // 重置时间和帧数
-            lastTime = currentTime;
-            frameCount = 0;
         }
 
         std::time_t now = std::time(nullptr);
@@ -159,11 +134,33 @@ auto lastTime = std::chrono::high_resolution_clock::now();  // 记录开始时�
         // 将数据插入数据库
         // insertRTSPLog(db, timestamp, extract_ip(), frameSrc);
 
-        // if (currentFrameID % 10 == 0)
-            // g_imageData.push(currentFrameID, inputImage.clone()); // 使用 clone()
-        g_imageData.push(currentFrameID, inputImage, timestamp, extract_ip(frameSrc));
-        // g_frameData.push(currentFrameID, inputImage, timestamp, extract_ip(frameSrc));
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        // 计算经过的时间
+        auto currentTime = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> elapsedTime = currentTime - lastTime;
+
+        // 每帧递增帧数
+        frameCount++;
+
+        // 如果超过1秒，计算一次FPS并重置帧数
+        if (elapsedTime.count() >= 1.0) {
+            // 更新帧ID
+            uint64_t currentFrameID = frameID.fetch_add(1);
+
+            // 检查帧ID是否溢出
+            if (currentFrameID >= MAX_FRAME_ID) {
+                frameID.store(0); // 重置帧ID
+                std::cout << "reset ID\n" << std::flush;
+            }
+            fps = frameCount / elapsedTime.count();  // 计算 FPS
+            // std::cout << "FPS: " << fps << " frames per second\n" << std::endl;
+            
+            // 重置时间和帧数
+            lastTime = currentTime;
+            frameCount = 0;
+            // cv::imwrite("output/src/" + timestamp + ".png", inputImage);
+            g_imageData.push(currentFrameID, inputImage, timestamp, extract_ip(frameSrc));
+        }
+
         std::cout << "." << std::flush;
         // cv::imshow("Detection.png", inputImage);
         // cv::waitKey(1);
@@ -183,6 +180,7 @@ void inferenceThread(rknnPool<PerDet, cv::Mat, PerDetResult>& perDetPool,
         // ImageData* frameData = g_frameData.front();
         if (!imageData) {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            std::cout << "imagedata empty\n" << std::flush;
             continue; 
         }
         cv::Mat frame = imageData->frame.clone();
@@ -209,15 +207,18 @@ void inferenceThread(rknnPool<PerDet, cv::Mat, PerDetResult>& perDetPool,
         fallDetThread.join();
         fireSmokeDetThread.join();
         resultReadyCond.notify_all();
+        std::cout << "*" << std::flush;
+        // std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
 }
 
-void resultProcessingThread(ExitFlags& flags) {
+void resultProcessingThread(rknnPool<PerAttr, cv::Mat, PerAttrResult>& perAttrDetPool, ExitFlags& flags) {
 
     std::filesystem::create_directories("output/perdet");
     std::filesystem::create_directories("output/falldet");
     std::filesystem::create_directories("output/firesmokedet");
     std::filesystem::create_directories("output/result");
+
     int count;
     std::string countText;
 
@@ -257,7 +258,35 @@ void resultProcessingThread(ExitFlags& flags) {
                 Json::Value perDetJson;
                 cv::Mat perDetImage = displayImage.clone();
                 count = 0;
+                std::vector<std::thread> perAttrThreads; // 存储线程
                 for (const auto& detection : frameData->perDetResult.detections) {
+                    // 将检测框转换为多边形
+                    cv::Rect detectionRect(detection.box.x, detection.box.y, detection.box.width, detection.box.height);
+                    std::vector<cv::Point> detectionPolygon = {
+                        cv::Point(detectionRect.tl().x, detectionRect.tl().y),  // 左上角
+                        cv::Point(detectionRect.br().x, detectionRect.tl().y),  // 右上角
+                        cv::Point(detectionRect.br().x, detectionRect.br().y),  // 右下角
+                        cv::Point(detectionRect.tl().x, detectionRect.br().y)   // 左下角
+                    };
+                    cv::Rect box(static_cast<int>(detectionRect.tl().x), static_cast<int>(detectionRect.tl().y),
+                                static_cast<int>(detection.box.width), static_cast<int>(detection.box.height));
+                    // 判断框是否在原始图像内
+                    if (detectionRect.x >= 0 && detectionRect.y >= 0 &&
+                        detectionRect.x + detectionRect.width <= perDetImage.cols &&
+                        detectionRect.y + detectionRect.height <= perDetImage.rows) {
+
+                        // 确保框在图像内才执行 perAttr 线程
+                        cv::Mat image = displayImage(detectionRect).clone();
+                        std::thread perAttrDetThread([&perAttrDetPool, image, frameID = frameData->imageData.frameID, ID = detection.id]() {
+                            perAttrDetPool.put(image, frameID, ID);
+                        });
+
+                        perAttrThreads.push_back(std::move(perAttrDetThread)); // 添加线程
+                    }
+                    // cv::Mat image = displayImage(box).clone();
+                    // std::thread perAttrDetThread([&perAttrDetPool, image, frameID = frameData->imageData.frameID, ID = detection.id]() {
+                    //     perAttrDetPool.put(image, frameID, ID);
+                    // });
                     cv::Scalar color((detection.id * 123) % 256, (detection.id * 456) % 256, (detection.id * 789) % 256);
 
                     // 绘制矩形框和文本
@@ -273,15 +302,6 @@ void resultProcessingThread(ExitFlags& flags) {
                     cv::rectangle(origImage, textRect, color, cv::FILLED);
                     putText(origImage, text, textOrigin + cv::Point(0, textSize.height), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255));
                     cv::rectangle(origImage, detection.box, color, 1);
-
-                    // 将检测框转换为多边形
-                    cv::Rect detectionRect(detection.box.x, detection.box.y, detection.box.width, detection.box.height);
-                    std::vector<cv::Point> detectionPolygon = {
-                        cv::Point(detectionRect.tl().x, detectionRect.tl().y),  // 左上角
-                        cv::Point(detectionRect.br().x, detectionRect.tl().y),  // 右上角
-                        cv::Point(detectionRect.br().x, detectionRect.br().y),  // 右下角
-                        cv::Point(detectionRect.tl().x, detectionRect.br().y)   // 左下角
-                    };
 
                     // 判断是否与多边形有重叠
                     std::vector<cv::Point> intersectionPolygon;
@@ -314,6 +334,32 @@ void resultProcessingThread(ExitFlags& flags) {
                 std::ofstream perdetFile("output/perdet/" + timeStr + ".json");
                 perdetFile << root["personDetections"].toStyledString();  // 写入 JSON 数据
                 // std::cout << root["personDetections"].toStyledString() << std::flush;
+                perdetFile.close();
+                for (auto& t : perAttrThreads) {
+                    if (t.joinable()) {
+                        t.join(); // 等待每个线程完成
+                    }
+                }
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+            if (frameData->perDetResult.ready_ && !frameData->perAttrResult.detections.empty()) {
+                Json::Value perAttrJson;
+                for (const auto& detection : frameData->perAttrResult.detections) {
+                    Json::Value attr;
+                    // 遍历 attributes 数组并映射到 JSON 中
+                    attr["id"] = detection.id;
+                    for (size_t i = 0; i < detection.attributes.size(); ++i) {
+                        if (i < attribute_labels.size()) {
+                            attr[attribute_labels[i]] = detection.attributes[i] > 0.5;
+                        }
+                    }
+                    perAttrJson.append(attr);
+                }
+                root["perAttrDetections"] = perAttrJson;
+                // cv::imwrite("output/perdet/" + timeStr + ".png", perDetImage);
+                std::ofstream perdetFile("output/perdet/" + timeStr + ".json");
+                perdetFile << root["perAttrDetections"].toStyledString();  // 写入 JSON 数据
+                // std::cout << root["perAttrDetections"].toStyledString() << std::flush;
                 perdetFile.close();
             }
         }
@@ -418,8 +464,8 @@ void resultProcessingThread(ExitFlags& flags) {
             cv::imwrite("output/result/" + timeStr + ".png", origImage);
             std::ofstream resultFile("output/result/" + timeStr + ".json");
             resultFile << root.toStyledString();
-            // DatabaseManager dbManager("data.db");
-            // dbManager.insertLog(frameData->imageData.timestamp, frameData->imageData.ip, rtsp_url, root.toStyledString());
+            DatabaseManager dbManager("data.db");
+            dbManager.insertLog(frameData->imageData.timestamp, frameData->imageData.ip, rtsp_url, root.toStyledString());
         }
         // 休眠
         // std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -458,6 +504,9 @@ int main(int argc, char* argv[]) {
     rknnPool<PerDet, cv::Mat, PerDetResult> perDetPool(modelPathPerDet, threadNum, g_frameData);
     perDetPool.init();
 
+    rknnPool<PerAttr, cv::Mat, PerAttrResult> perAttrDetPool(modelPathPerAttr, threadNum, g_frameData);
+    perAttrDetPool.init();
+
     rknnPool<FallDet, cv::Mat, FallDetResult> fallDetPool(modelPathFallDet, threadNum, g_frameData);
     fallDetPool.init();
 
@@ -466,7 +515,7 @@ int main(int argc, char* argv[]) {
 
     std::thread captureThread(captureFrames, std::ref(g_flags), frameSrc);
     std::thread inferThread(inferenceThread, std::ref(perDetPool), std::ref(fallDetPool), std::ref(fireSmokeDetPool), std::ref(g_flags));
-    std::thread resultThread(resultProcessingThread, std::ref(g_flags));
+    std::thread resultThread(resultProcessingThread, std::ref(perAttrDetPool), std::ref(g_flags));
 
     captureThread.join();
     inferThread.join();

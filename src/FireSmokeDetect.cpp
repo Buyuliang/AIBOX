@@ -15,9 +15,9 @@ static std::vector<std::vector<float>> convertToVector(float* data, int num_boxe
     return result;
 }
 
- FireSmokeDet::FireSmokeDet() {
+FireSmokeDet::FireSmokeDet() {
 
- }
+}
 
 int FireSmokeDet::init(const std::string& modelPath) {
 

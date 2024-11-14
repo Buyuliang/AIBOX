@@ -20,7 +20,7 @@ struct FallDetResult {
     FallDetResult() : ready_(false) {} // 初始化 ready 为 false
 
     // 复制构造函数
-    FallDetResult(const FallDetResult& other) 
+    FallDetResult(const FallDetResult& other)
         : detections(other.detections), ready_(other.ready_) {}
 
     // 赋值操作符
